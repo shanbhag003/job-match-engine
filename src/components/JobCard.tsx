@@ -63,6 +63,15 @@ export default function JobCard({ job, rank, applied, onOpen }: Props) {
               {job.expMin}–{job.expMax} yrs
             </Tag>
             {job.salary && <Tag>{job.salary}</Tag>}
+            {job.postedRelative && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Posted {job.postedRelative.toLowerCase()}
+              </span>
+            )}
           </div>
           <p className="mt-2 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">{job.reasons[0]}</p>
 

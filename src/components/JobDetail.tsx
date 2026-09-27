@@ -75,6 +75,7 @@ export default function JobDetail({ job, applied, appliedOn, onClose, onToggleAp
                   {job.expMin}–{job.expMax} yrs
                 </Chip>
                 <Chip>{job.city}</Chip>
+                {job.postedRelative && <Chip>Posted {job.postedRelative.toLowerCase()}</Chip>}
               </div>
             </div>
           </div>
