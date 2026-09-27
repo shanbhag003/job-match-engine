@@ -63,6 +63,16 @@ function classifyCity(locationLabel) {
   return null // outside the allowed locations -> caller drops it
 }
 
+// Engineering / individual-contributor technical titles we exclude.
+const DEV_TITLE =
+  /\b(developer|engineer|engineering|programmer|sde|sdet|architect|dev\s?ops|qa|tester|data scientist|machine learning|ml engineer|full[-\s]?stack|front[-\s]?end|back[-\s]?end|java|python|react|angular|\.net|node\.?js|golang|android|ios)\b/i
+const PRODUCT_TITLE = /product\s*(manager|owner|lead|management)|\b(a?pm|gpm)\b/i
+
+/** Keep product roles; drop developer/engineer/IC technical roles. */
+export function isProductRole(title) {
+  return PRODUCT_TITLE.test(title) || !DEV_TITLE.test(title)
+}
+
 /**
  * @param {object} jd  A Naukri jobapi jobDetails record.
  * @param {{workMode: 'On-site'|'Hybrid'}} ctx
@@ -72,6 +82,7 @@ export function normalize(jd, ctx) {
   const ph = Object.fromEntries((jd.placeholders || []).map((p) => [p.type, p.label]))
   const city = classifyCity(ph.location)
   if (!city) return null
+  if (!isProductRole(jd.title || '')) return null // drop developer/engineer roles
 
   const skills = (jd.tagsAndSkills || '')
     .split(',')
