@@ -1,0 +1,82 @@
+name: Scrape & deploy Job Match Engine
+
+# No-server hosting: on a schedule (and on push), harvest fresh Naukri listings,
+# build the app with the feed baked in as a same-origin file, and publish the
+# whole thing to GitHub Pages. No always-on backend required.
+
+on:
+  schedule:
+    - cron: '0 * * * *' # hourly, on the hour (UTC)
+  push:
+    branches: [main]
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+# Least-privilege token needed to publish to GitHub Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deploy at a time; let a newer run supersede an in-flight one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install frontend deps
+        run: npm ci
+
+      - name: Install scraper deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Install headless Chrome for Puppeteer
+        working-directory: backend
+        run: npx puppeteer browsers install chrome
+
+      - name: Harvest latest jobs (writes backend/data/jobs.json)
+        working-directory: backend
+        run: npm run scrape
+        continue-on-error: true # a scrape hiccup shouldn't block a deploy
+
+      - name: Publish feed as a same-origin file
+        run: |
+          mkdir -p public
+          if [ -f backend/data/jobs.json ]; then
+            cp backend/data/jobs.json public/jobs.json
+            echo "Published feed ($(wc -c < public/jobs.json) bytes) as public/jobs.json"
+          else
+            echo "No fresh feed produced; the app will fall back to its baked-in listings."
+          fi
+
+      - name: Build app (fetches ./jobs.json at runtime, same-origin)
+        env:
+          VITE_JOBS_FEED_URL: ./jobs.json
+        run: npm run build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
