@@ -124,6 +124,7 @@ export interface ScoreBreakdown {
   skills: number
   experience: number
   location: number
+  freshness: number
 }
 
 export interface SkillMatch {

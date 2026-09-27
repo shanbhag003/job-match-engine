@@ -18,6 +18,7 @@ const COMPONENT_META: { key: keyof ScoreBreakdown; label: string }[] = [
   { key: 'skills', label: 'Skills overlap' },
   { key: 'experience', label: 'Experience-level fit' },
   { key: 'location', label: 'Location & work mode' },
+  { key: 'freshness', label: 'Freshness (posting age)' },
 ]
 
 export default function JobDetail({ job, applied, appliedOn, onClose, onToggleApplied }: Props) {

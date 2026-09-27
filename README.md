@@ -13,11 +13,15 @@ computed from it.
 
   | Component | Weight |
   |---|---|
-  | Domain / industry fit | 25 |
-  | Role & seniority fit | 20 |
-  | Skills overlap (synonym-aware) | 25 |
-  | Experience-level fit | 15 |
-  | Location & work mode | 15 |
+  | Domain / industry fit | 23 |
+  | Role & seniority fit | 18 |
+  | Skills overlap (synonym-aware) | 23 |
+  | Experience-level fit | 12 |
+  | Location & work mode | 12 |
+  | Freshness (posting age) | 12 |
+
+  Freshness decays with the posting's age (from Naukri's posted date), so a stale
+  30-day-old listing that's likely already filled scores below an equally-good fresh one.
 
   Relevance (domain + role + skills = 70%) dominates location (15%), so a high-keyword but
   poor-fit Mumbai job cannot outrank a genuine career fit.

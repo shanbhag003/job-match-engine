@@ -17,11 +17,12 @@ import { ON_PROFILE_DOMAINS, toConcepts, norm } from './taxonomy'
 // ---------------------------------------------------------------------------
 
 export const WEIGHTS: ScoreBreakdown = {
-  domain: 25,
-  role: 20,
-  skills: 25,
-  experience: 15,
-  location: 15,
+  domain: 23,
+  role: 18,
+  skills: 23,
+  experience: 12,
+  location: 12,
+  freshness: 12,
 }
 
 // PM competencies that signal a genuine role fit — weighted above tool keywords.
@@ -131,6 +132,28 @@ function scoreLocation(job: Job): number {
   return clamp(s)
 }
 
+// ---- Freshness (how recently posted) -------------------------------------
+/** Approximate age of a posting in days from Naukri's relative label. */
+export function postedAgeDays(posted?: string): number | null {
+  if (!posted) return null
+  const t = posted.toLowerCase()
+  if (/just now|today|few hours|hour|moment/.test(t)) return 0
+  const m = t.match(/(\d+)\s*\+?\s*(day|week|month)/)
+  if (!m) return null
+  const n = Number(m[1])
+  if (t.includes('month')) return n * 30
+  if (t.includes('week')) return n * 7
+  return n
+}
+
+/** Fresher postings score higher — an old listing is likelier already filled. */
+function scoreFreshness(job: Job): number {
+  const days = postedAgeDays(job.postedRelative)
+  if (days === null) return 65 // unknown age: mildly cautious, not punitive
+  // Full marks for the first couple of days, then a steady decay.
+  return clamp(100 - Math.max(0, days - 2) * 3)
+}
+
 // ---- Explanations --------------------------------------------------------
 function buildReasons(
   job: Job,
@@ -159,6 +182,12 @@ function buildReasons(
       ? 'Located in Navi Mumbai — your top-priority location.'
       : 'Located in Mumbai — your second-priority location.',
   )
+  const days = postedAgeDays(job.postedRelative)
+  if (days !== null) {
+    if (days <= 3) r.push('Freshly posted — better odds the opening is still active.')
+    else if (days >= 21)
+      r.push(`Posted ~${days}+ days ago — older listings may already be filled, lowering the score.`)
+  }
   return r
 }
 
@@ -245,6 +274,7 @@ export function scoreJob(
     skills: skills.score,
     experience: scoreExperience(job, level),
     location: scoreLocation(job),
+    freshness: scoreFreshness(job),
   }
 
   const contributions: ScoreBreakdown = {
@@ -253,6 +283,7 @@ export function scoreJob(
     skills: (breakdown.skills * WEIGHTS.skills) / 100,
     experience: (breakdown.experience * WEIGHTS.experience) / 100,
     location: (breakdown.location * WEIGHTS.location) / 100,
+    freshness: (breakdown.freshness * WEIGHTS.freshness) / 100,
   }
 
   const score = clamp(
@@ -260,7 +291,8 @@ export function scoreJob(
       contributions.role +
       contributions.skills +
       contributions.experience +
-      contributions.location,
+      contributions.location +
+      contributions.freshness,
   )
 
   return {
