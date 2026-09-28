@@ -21,17 +21,17 @@ export interface JobSource {
   fetchJobs(): Promise<JobFeedResult>
 }
 
-// Titles that mark an engineering / individual-contributor technical role we
-// don't want (Python dev, ML engineer, data scientist, QA, architect, …).
-const DEV_TITLE =
-  /\b(developer|engineer|engineering|programmer|sde|sdet|architect|dev\s?ops|qa|tester|data scientist|machine learning|ml engineer|full[-\s]?stack|front[-\s]?end|back[-\s]?end|java|python|react|angular|\.net|node\.?js|golang|android|ios)\b/i
+// Titles we drop: engineering / individual-contributor technical roles (Python
+// dev, ML engineer, data scientist, QA, architect…) AND sales roles.
+const EXCLUDE_TITLE =
+  /\b(developer|engineer|engineering|programmer|sde|sdet|architect|dev\s?ops|qa|tester|data scientist|machine learning|ml engineer|full[-\s]?stack|front[-\s]?end|back[-\s]?end|java|python|react|angular|\.net|node\.?js|golang|android|ios|sales|business development|\bbd\b|pre[-\s]?sales|account manager|relationship manager|territory manager)\b/i
 // Titles that are unambiguously product roles — always kept, even if the line
-// also mentions a technical word (e.g. "AI Technical Product Manager").
+// also mentions a technical or sales word (e.g. "AI Technical Product Manager").
 const PRODUCT_TITLE = /product\s*(manager|owner|lead|management)|\b(a?pm|gpm)\b/i
 
-/** Keep product roles; drop developer/engineer/IC technical roles. */
+/** Keep product roles; drop developer/engineer/IC-technical and sales roles. */
 export const isProductRole = (title: string): boolean =>
-  PRODUCT_TITLE.test(title) || !DEV_TITLE.test(title)
+  PRODUCT_TITLE.test(title) || !EXCLUDE_TITLE.test(title)
 
 const allowed = (j: Job) =>
   (j.city === 'Navi Mumbai' || j.city === 'Mumbai') &&

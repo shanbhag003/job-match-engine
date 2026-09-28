@@ -63,14 +63,24 @@ export function classifyCity(locationLabel) {
   return null // outside the allowed locations -> caller drops it
 }
 
-// Engineering / individual-contributor technical titles we exclude.
-const DEV_TITLE =
-  /\b(developer|engineer|engineering|programmer|sde|sdet|architect|dev\s?ops|qa|tester|data scientist|machine learning|ml engineer|full[-\s]?stack|front[-\s]?end|back[-\s]?end|java|python|react|angular|\.net|node\.?js|golang|android|ios)\b/i
-const PRODUCT_TITLE = /product\s*(manager|owner|lead|management)|\b(a?pm|gpm)\b/i
+// Titles we exclude: engineering / IC-technical roles AND sales roles.
+const EXCLUDE_TITLE =
+  /\b(developer|engineer|engineering|programmer|sde|sdet|architect|dev\s?ops|qa|tester|data scientist|machine learning|ml engineer|full[-\s]?stack|front[-\s]?end|back[-\s]?end|java|python|react|angular|\.net|node\.?js|golang|android|ios|sales|business development|\bbd\b|pre[-\s]?sales|account manager|relationship manager|territory manager)\b/i
+const PRODUCT_TITLE =
+  /\bproduct\s+(manager|owner|management|lead|director|head)\b|\b(a?pm|gpm|cpo)\b|\b(director|head|vp|chief)\s+(of\s+)?product\b/i
 
-/** Keep product roles; drop developer/engineer/IC technical roles. */
+/** Lenient: keep genuine product roles; drop developer/engineer/IC-technical
+ *  and sales roles. Used for already-category-filtered sources (Naukri). A real
+ *  "Product Manager" title always wins over a technical/sales word elsewhere. */
 export function isProductRole(title) {
-  return PRODUCT_TITLE.test(title) || !DEV_TITLE.test(title)
+  return PRODUCT_TITLE.test(title) || !EXCLUDE_TITLE.test(title)
+}
+
+/** Strict: the title must itself be a product role. Used for broad keyword
+ *  aggregators (Adzuna, Google-for-Jobs) whose searches return lots of
+ *  loosely-related roles. */
+export function isStrictProductRole(title) {
+  return PRODUCT_TITLE.test(title) && !EXCLUDE_TITLE.test(title)
 }
 
 /**

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { harvest } from './harvest.js'
 import { fetchAdzuna } from './adzuna.js'
+import { fetchSerpJobs } from './serpapi.js'
 
 // ---------------------------------------------------------------------------
 // Orchestrator: harvest -> filter (Navi Mumbai / Mumbai, Hybrid / On-site only)
@@ -21,7 +22,8 @@ export async function runScrape({ log = console.log } = {}) {
   // returns Job[] with its own `source` label; the scorer/UI need no changes.
   const naukri = await harvest({ log })
   const adzuna = await fetchAdzuna({ log })
-  const all = [...naukri, ...adzuna]
+  const serp = await fetchSerpJobs({ log })
+  const all = [...naukri, ...adzuna, ...serp]
 
   // Enforce product rules at the boundary (belt-and-braces; sources already do).
   const inScope = all.filter(

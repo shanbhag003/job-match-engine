@@ -54,10 +54,11 @@ jobs:
         run: npm run scrape
         continue-on-error: true # a scrape hiccup shouldn't block a deploy
         env:
-          # Optional: add these as repo secrets to enable the Adzuna source.
-          # Get a free id/key at https://developer.adzuna.com. Unset = skipped.
-          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+          # Optional source keys — add as repo secrets to enable. Any unset
+          # source is simply skipped; Naukri always runs.
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }} # https://developer.adzuna.com
           ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }} # https://serpapi.com (Google-for-Jobs)
 
       - name: Publish feed as a same-origin file
         run: |

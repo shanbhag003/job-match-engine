@@ -49,9 +49,19 @@ the app. De-duplication is by title + company + city.
   ADZUNA_APP_ID=xxxx ADZUNA_APP_KEY=yyyy npm run scrape
   ```
 
-  In GitHub Actions, add `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` as repository
-  **secrets** (Settings → Secrets and variables → Actions). Unset = Adzuna is
-  skipped and only Naukri is used.
+- **SerpApi Google-for-Jobs** — optional, broadest coverage. Google for Jobs
+  aggregates LinkedIn, company career pages, Indeed, Foundit, etc., so one query
+  spans many boards. Each posting's `source` is set to the underlying board (the
+  Google "via …" value), so you see where it really came from. Get a key at
+  <https://serpapi.com> (free tier ~100 searches/mo):
+
+  ```bash
+  SERPAPI_KEY=zzzz npm run scrape
+  ```
+
+  In GitHub Actions, add the keys you want as repository **secrets**
+  (Settings → Secrets and variables → Actions): `ADZUNA_APP_ID`,
+  `ADZUNA_APP_KEY`, `SERPAPI_KEY`. Any unset source is skipped; Naukri always runs.
 
 Adding another source is just a new module returning `Job[]` with its own
 `source`, concatenated in [`src/scrape.js`](src/scrape.js) — the scorer and UI
