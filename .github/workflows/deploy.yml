@@ -81,6 +81,9 @@ jobs:
       - name: Build app (fetches ./jobs.json at runtime, same-origin)
         env:
           VITE_JOBS_FEED_URL: ./jobs.json
+          # Optional: set repo variable SYNC_URL to your Cloudflare Worker URL so
+          # the Sync dialog pre-fills it (each device then only needs the code).
+          VITE_SYNC_URL: ${{ vars.SYNC_URL }}
         run: npm run build
 
       - name: Configure Pages

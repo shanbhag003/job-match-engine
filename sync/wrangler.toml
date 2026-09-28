@@ -1,0 +1,10 @@
+name = "job-match-sync"
+main = "src/worker.js"
+compatibility_date = "2024-11-01"
+
+# The KV namespace that stores each sync code's status blob.
+# Create it once and paste the id below (see sync/README.md):
+#   npx wrangler kv namespace create JMP
+[[kv_namespaces]]
+binding = "JMP"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"

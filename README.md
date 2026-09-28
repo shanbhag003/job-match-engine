@@ -36,6 +36,9 @@ computed from it.
   extracted profile, and the engine re-derives your level and re-scores every job. No upload,
   no credentials.
 - **Auto-refresh hourly**: the app re-pulls from its `JobSource` every hour.
+- **Cross-device sync** (optional): applied / not-interested status syncs across
+  devices via a private sync code, backed by a tiny Cloudflare Worker + KV. See
+  [`sync/`](sync/README.md). Without it, status stays per-device in localStorage.
 
 ## Fixed product rules (not user-configurable)
 

@@ -9,6 +9,15 @@ import Dashboard from './components/Dashboard'
 import JobCard from './components/JobCard'
 import JobDetail from './components/JobDetail'
 import ResumeUpload from './components/ResumeUpload'
+import SyncModal, { type SyncStatus } from './components/SyncModal'
+import {
+  loadSyncConfig,
+  saveSyncConfig,
+  pushState,
+  pullState,
+  type SyncConfig,
+  type SyncState,
+} from './lib/sync'
 
 type Tab = 'dashboard' | 'matches' | 'applied'
 
@@ -55,6 +64,10 @@ export default function App() {
   })
   const [hidden, setHidden] = useState<Record<string, true>>(loadHidden)
   const [showHidden, setShowHidden] = useState(false)
+  const [syncConfig, setSyncConfig] = useState<SyncConfig | null>(loadSyncConfig)
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>(() => (loadSyncConfig() ? 'connecting' : 'off'))
+  const [syncOpen, setSyncOpen] = useState(false)
+  const [syncReady, setSyncReady] = useState(false)
   const [tab, setTab] = useState<Tab>('dashboard')
   const [selected, setSelected] = useState<ScoredJob | null>(null)
   const [query, setQuery] = useState('')
@@ -111,6 +124,63 @@ export default function App() {
       delete next[id]
       return next
     })
+  }, [])
+
+  // ---- Cross-device sync (Cloudflare Worker, see /sync) ----
+  // Merge remote status into local (additive — never lose an application).
+  const applyRemote = useCallback((remote: SyncState) => {
+    setApplied((prev) => ({ ...remote.applied, ...prev }))
+    setHidden((prev) => ({ ...remote.hidden, ...prev }))
+  }, [])
+
+  // On load: pull remote once, then allow pushes. Pulling BEFORE the first push
+  // is essential so an empty new device can't wipe the shared status.
+  useEffect(() => {
+    const cfg = loadSyncConfig()
+    if (!cfg) {
+      setSyncReady(true)
+      return
+    }
+    setSyncStatus('connecting')
+    pullState(cfg)
+      .then((remote) => {
+        applyRemote(remote)
+        setSyncStatus('ok')
+      })
+      .catch(() => setSyncStatus('error'))
+      .finally(() => setSyncReady(true))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Push local status to the cloud on change (debounced). Gated on syncReady so
+  // the initial pull always wins first.
+  useEffect(() => {
+    if (!syncConfig || !syncReady) return
+    const t = setTimeout(() => {
+      pushState(syncConfig, { applied, hidden })
+        .then(() => setSyncStatus('ok'))
+        .catch(() => setSyncStatus('error'))
+    }, 900)
+    return () => clearTimeout(t)
+  }, [applied, hidden, syncConfig, syncReady])
+
+  const onSyncConnect = useCallback(
+    (cfg: SyncConfig, remote: SyncState) => {
+      saveSyncConfig(cfg)
+      setSyncConfig(cfg)
+      applyRemote(remote)
+      setSyncReady(true)
+      setSyncStatus('ok')
+      setSyncOpen(false)
+    },
+    [applyRemote],
+  )
+
+  const onSyncDisconnect = useCallback(() => {
+    saveSyncConfig(null)
+    setSyncConfig(null)
+    setSyncStatus('off')
+    setSyncOpen(false)
   }, [])
 
   // Load jobs from the active source (swap-in-ready for a live API).
@@ -234,6 +304,36 @@ export default function App() {
               <path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             {refreshing ? 'Refreshing' : timeAgo(lastRefreshed)}
+          </button>
+          <button
+            onClick={() => setSyncOpen(true)}
+            className="relative rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+            aria-label="Sync across devices"
+            title={
+              syncStatus === 'ok'
+                ? 'Synced across devices'
+                : syncStatus === 'error'
+                  ? 'Sync error — tap to fix'
+                  : syncStatus === 'connecting'
+                    ? 'Syncing…'
+                    : 'Sync across devices'
+            }
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 12a9 9 0 0 0-9-9 9 9 0 0 0-7.5 4M3 12a9 9 0 0 0 9 9 9 9 0 0 0 7.5-4" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M3 4v4h4M21 20v-4h-4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span
+              className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-slate-950 ${
+                syncStatus === 'ok'
+                  ? 'bg-emerald-500'
+                  : syncStatus === 'error'
+                    ? 'bg-rose-500'
+                    : syncStatus === 'connecting'
+                      ? 'bg-amber-400'
+                      : 'bg-slate-300 dark:bg-slate-600'
+              }`}
+            />
           </button>
           <button
             onClick={() => setDark((d) => !d)}
@@ -489,6 +589,15 @@ export default function App() {
         onApply={applyProfile}
         onReset={resetProfile}
         onClose={() => setUploadOpen(false)}
+      />
+
+      <SyncModal
+        open={syncOpen}
+        config={syncConfig}
+        status={syncStatus}
+        onConnect={onSyncConnect}
+        onDisconnect={onSyncDisconnect}
+        onClose={() => setSyncOpen(false)}
       />
     </div>
   )
