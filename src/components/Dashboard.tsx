@@ -42,7 +42,7 @@ export default function Dashboard({ stats, level, applied, onOpen, onSeeAll }: P
           title="Top job recommendations"
           action={{ label: 'See all matches →', onClick: onSeeAll }}
         />
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {stats.bestJob &&
             [stats.bestJob, ...topAfterBest(stats)].slice(0, 6).map((j, i) => (
               <JobCard key={j.id} job={j} rank={i + 1} applied={!!applied[j.id]} onOpen={onOpen} />
@@ -50,7 +50,7 @@ export default function Dashboard({ stats, level, applied, onOpen, onSeeAll }: P
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Roles grouped */}
         <section className="lg:col-span-2">
           <SectionHeader title="Jobs grouped by role category" />

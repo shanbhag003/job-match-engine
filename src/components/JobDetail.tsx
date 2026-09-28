@@ -135,7 +135,7 @@ export default function JobDetail({ job, applied, appliedOn, onClose, onToggleAp
           </Section>
 
           {/* Skills */}
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <Section title={`Matching skills (${job.skillMatch.matched.length})`}>
               <div className="flex flex-wrap gap-1.5">
                 {job.skillMatch.matched.length ? (

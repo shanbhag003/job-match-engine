@@ -230,7 +230,7 @@ export default function ResumeUpload({ open, currentProfile, isCustom, onApply, 
                 <p className="mt-1 text-[11px] text-slate-400">Order = strength; the leftmost selected counts most.</p>
               </Field>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Product & delivery skills">
                   <textarea
                     className={`${inputCls} h-24`}

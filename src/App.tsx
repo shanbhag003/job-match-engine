@@ -322,7 +322,7 @@ export default function App() {
               {filtered.length} role{filtered.length !== 1 ? 's' : ''}, ranked by career fit (Navi
               Mumbai breaks ties).
             </p>
-            <div className="grid gap-3 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               {filtered.map((j, i) => (
                 <JobCard key={j.id} job={j} rank={i + 1} applied={!!applied[j.id]} onOpen={setSelected} />
               ))}
@@ -354,7 +354,7 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              <div className="grid gap-3 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                 {appliedJobs.map((j) => (
                   <JobCard key={j.id} job={j} applied onOpen={setSelected} />
                 ))}
