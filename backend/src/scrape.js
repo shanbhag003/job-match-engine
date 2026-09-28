@@ -2,6 +2,7 @@ import { writeFile, mkdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { harvest } from './harvest.js'
+import { fetchAdzuna } from './adzuna.js'
 
 // ---------------------------------------------------------------------------
 // Orchestrator: harvest -> filter (Navi Mumbai / Mumbai, Hybrid / On-site only)
@@ -15,18 +16,35 @@ export const FEED_PATH = join(__dirname, '..', 'data', 'jobs.json')
 export async function runScrape({ log = console.log } = {}) {
   const started = Date.now()
   log(`[scrape] starting harvest at ${new Date().toISOString()}`)
-  const jobs = await harvest({ log })
 
-  // Enforce product rules at the boundary (belt-and-braces; harvest already does).
-  const clean = jobs.filter(
+  // Gather from every configured source. Add more sources here — each just
+  // returns Job[] with its own `source` label; the scorer/UI need no changes.
+  const naukri = await harvest({ log })
+  const adzuna = await fetchAdzuna({ log })
+  const all = [...naukri, ...adzuna]
+
+  // Enforce product rules at the boundary (belt-and-braces; sources already do).
+  const inScope = all.filter(
     (j) =>
       (j.city === 'Navi Mumbai' || j.city === 'Mumbai') &&
       (j.workMode === 'On-site' || j.workMode === 'Hybrid'),
   )
 
+  // De-duplicate the same posting appearing on more than one source
+  // (keep the first — Naukri is listed first). Match on title + company + city.
+  const seen = new Set()
+  const clean = inScope.filter((j) => {
+    const key = `${j.title.toLowerCase().trim()}|${j.company.toLowerCase().trim()}|${j.city}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+  const bySource = clean.reduce((m, j) => ((m[j.source] = (m[j.source] || 0) + 1), m), {})
+  log(`[scrape] by source: ${JSON.stringify(bySource)}`)
+
   const feed = {
     generatedAt: new Date().toISOString(),
-    source: 'Naukri.com',
+    sources: bySource, // e.g. { "Naukri.com": 22, "Adzuna": 14 }
     count: clean.length,
     jobs: clean,
   }

@@ -53,6 +53,11 @@ jobs:
         working-directory: backend
         run: npm run scrape
         continue-on-error: true # a scrape hiccup shouldn't block a deploy
+        env:
+          # Optional: add these as repo secrets to enable the Adzuna source.
+          # Get a free id/key at https://developer.adzuna.com. Unset = skipped.
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
 
       - name: Publish feed as a same-origin file
         run: |

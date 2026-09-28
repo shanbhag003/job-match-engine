@@ -77,6 +77,7 @@ export default function JobDetail({ job, applied, appliedOn, onClose, onToggleAp
                 </Chip>
                 <Chip>{job.city}</Chip>
                 {job.postedRelative && <Chip>Posted {job.postedRelative.toLowerCase()}</Chip>}
+                <Chip>via {job.source}</Chip>
               </div>
             </div>
           </div>

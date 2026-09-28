@@ -27,7 +27,7 @@ const DOMAIN_ORDER = [
   'banking-lending', 'insurance', 'manufacturing-fmcg',
 ]
 
-function classifyDomain(text) {
+export function classifyDomain(text) {
   const t = ` ${text.toLowerCase()} `
   for (const d of DOMAIN_ORDER) {
     if ((DOMAIN_KEYWORDS[d] || []).some((k) => t.includes(k))) return d
@@ -35,7 +35,7 @@ function classifyDomain(text) {
   return 'other'
 }
 
-function classifyRole(title, skills, jd) {
+export function classifyRole(title, skills, jd) {
   const t = `${title} ${skills} ${jd}`.toLowerCase()
   if (/\b(brand|marketing manager|promotions|advertising)\b/.test(t) && /pharma|fmcg|paint/.test(t))
     return 'brand-marketing-pm'
@@ -48,7 +48,7 @@ function classifyRole(title, skills, jd) {
   return 'core-pm'
 }
 
-function parseExp(label) {
+export function parseExp(label) {
   // "3-8 Yrs" -> {min:3,max:8}
   const m = (label || '').match(/(\d+)\s*-\s*(\d+)/)
   if (m) return { min: Number(m[1]), max: Number(m[2]) }
@@ -56,7 +56,7 @@ function parseExp(label) {
   return single ? { min: Number(single[1]), max: Number(single[1]) + 3 } : { min: 0, max: 5 }
 }
 
-function classifyCity(locationLabel) {
+export function classifyCity(locationLabel) {
   const l = (locationLabel || '').toLowerCase()
   if (l.includes('navi mumbai')) return 'Navi Mumbai'
   if (l.includes('mumbai')) return 'Mumbai'

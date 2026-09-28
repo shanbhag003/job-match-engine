@@ -42,6 +42,16 @@ export default function JobCard({ job, rank, applied, onOpen }: Props) {
                 ✓ Applied
               </span>
             )}
+            <span
+              className="ml-auto inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 dark:bg-slate-700/50 dark:text-slate-300"
+              title={`Sourced from ${job.source}`}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" strokeLinecap="round" />
+              </svg>
+              {job.source}
+            </span>
           </div>
           <h3 className="mt-1 truncate text-base font-semibold text-slate-900 group-hover:text-brand-700 dark:text-white dark:group-hover:text-brand-300">
             {job.title}

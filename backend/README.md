@@ -36,6 +36,27 @@ Tune the search matrix in [`src/queries.js`](src/queries.js) (keywords, cities,
 work modes, results per query). Classification (domain/role/city/work-mode) lives
 in [`src/classify.js`](src/classify.js) and mirrors the frontend taxonomy.
 
+### Sources
+
+The feed merges multiple sources; each posting carries a `source` label shown in
+the app. De-duplication is by title + company + city.
+
+- **Naukri.com** — always on (headless-browser harvest of its search API).
+- **Adzuna** — optional. Uses Adzuna's free official JSON API. Get an app id +
+  key at <https://developer.adzuna.com> and set them as env vars:
+
+  ```bash
+  ADZUNA_APP_ID=xxxx ADZUNA_APP_KEY=yyyy npm run scrape
+  ```
+
+  In GitHub Actions, add `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` as repository
+  **secrets** (Settings → Secrets and variables → Actions). Unset = Adzuna is
+  skipped and only Naukri is used.
+
+Adding another source is just a new module returning `Job[]` with its own
+`source`, concatenated in [`src/scrape.js`](src/scrape.js) — the scorer and UI
+need no changes.
+
 ## Point the frontend at the feed
 
 Build the frontend with the feed URL set:
