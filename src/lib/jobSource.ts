@@ -13,6 +13,15 @@ export interface JobFeedResult {
   generatedAt: string | null
   /** true when served from the live scraper feed; false for baked-in data. */
   live: boolean
+  /** Count of jobs per source, e.g. { "Naukri.com": 83, "Adzuna": 57 }. */
+  sources: Record<string, number>
+}
+
+function countSources(jobs: Job[]): Record<string, number> {
+  return jobs.reduce<Record<string, number>>((m, j) => {
+    m[j.source] = (m[j.source] || 0) + 1
+    return m
+  }, {})
 }
 
 export interface JobSource {
@@ -49,7 +58,8 @@ export class StaticJobSource implements JobSource {
   readonly id = 'naukri-static'
   readonly label = 'Naukri.com (captured listings)'
   async fetchJobs(): Promise<JobFeedResult> {
-    return { jobs: staticJobs.filter(allowed), generatedAt: staticCapturedOn(), live: false }
+    const jobs = staticJobs.filter(allowed)
+    return { jobs, generatedAt: staticCapturedOn(), live: false, sources: countSources(jobs) }
   }
 }
 
@@ -69,10 +79,11 @@ export class FetchJobSource implements JobSource {
       const data = (await res.json()) as { jobs?: Job[]; generatedAt?: string }
       const jobs = Array.isArray(data.jobs) ? data.jobs.filter(allowed) : []
       if (!jobs.length) throw new Error('empty feed')
-      return { jobs, generatedAt: data.generatedAt ?? null, live: true }
+      return { jobs, generatedAt: data.generatedAt ?? null, live: true, sources: countSources(jobs) }
     } catch (e) {
       console.warn('[jobSource] live feed unavailable, using baked-in data:', e)
-      return { jobs: staticJobs.filter(allowed), generatedAt: staticCapturedOn(), live: false }
+      const jobs = staticJobs.filter(allowed)
+      return { jobs, generatedAt: staticCapturedOn(), live: false, sources: countSources(jobs) }
     }
   }
 }

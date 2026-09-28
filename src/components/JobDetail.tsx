@@ -10,6 +10,7 @@ interface Props {
   appliedOn?: string
   onClose: () => void
   onToggleApplied: (job: ScoredJob) => void
+  onHide: (id: string) => void
 }
 
 const COMPONENT_META: { key: keyof ScoreBreakdown; label: string }[] = [
@@ -21,7 +22,7 @@ const COMPONENT_META: { key: keyof ScoreBreakdown; label: string }[] = [
   { key: 'freshness', label: 'Freshness (posting age)' },
 ]
 
-export default function JobDetail({ job, applied, appliedOn, onClose, onToggleApplied }: Props) {
+export default function JobDetail({ job, applied, appliedOn, onClose, onToggleApplied, onHide }: Props) {
   useEffect(() => {
     if (!job) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -219,6 +220,12 @@ export default function JobDetail({ job, applied, appliedOn, onClose, onToggleAp
               {applied ? 'Applied ✓' : 'Mark applied'}
             </button>
           </div>
+          <button
+            onClick={() => onHide(job.id)}
+            className="w-full rounded-lg py-1.5 text-xs font-medium text-slate-400 transition hover:text-rose-500"
+          >
+            Not interested — hide this job
+          </button>
         </div>
       </aside>
     </div>

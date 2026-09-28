@@ -7,10 +7,11 @@ interface Props {
   level: DerivedLevel
   applied: Record<string, { appliedOn: string }>
   onOpen: (job: ScoredJob) => void
+  onHide: (id: string) => void
   onSeeAll: () => void
 }
 
-export default function Dashboard({ stats, level, applied, onOpen, onSeeAll }: Props) {
+export default function Dashboard({ stats, level, applied, onOpen, onHide, onSeeAll }: Props) {
   return (
     <div className="space-y-8">
       {/* Stat tiles */}
@@ -45,7 +46,7 @@ export default function Dashboard({ stats, level, applied, onOpen, onSeeAll }: P
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {stats.bestJob &&
             [stats.bestJob, ...topAfterBest(stats)].slice(0, 6).map((j, i) => (
-              <JobCard key={j.id} job={j} rank={i + 1} applied={!!applied[j.id]} onOpen={onOpen} />
+              <JobCard key={j.id} job={j} rank={i + 1} applied={!!applied[j.id]} onOpen={onOpen} onHide={onHide} />
             ))}
         </div>
       </section>

@@ -15,8 +15,11 @@ type Tab = 'dashboard' | 'matches' | 'applied'
 const REFRESH_MS = 60 * 60 * 1000 // auto-refresh every hour
 const APPLIED_KEY = 'jmp-applied'
 const PROFILE_KEY = 'jmp-profile'
+const HIDDEN_KEY = 'jmp-hidden'
 
-type AppliedMap = Record<string, { appliedOn: string }>
+// Store a snapshot of the applied job so it stays in the Applied tab even after
+// it drops out of the live feed on a later refresh.
+type AppliedMap = Record<string, { appliedOn: string; job?: ScoredJob }>
 
 function loadApplied(): AppliedMap {
   try {
@@ -35,12 +38,23 @@ function loadCustomProfile(): CandidateProfile | null {
   }
 }
 
+function loadHidden(): Record<string, true> {
+  try {
+    return JSON.parse(localStorage.getItem(HIDDEN_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
+
 export default function App() {
   const [rawJobs, setRawJobs] = useState<Job[] | null>(null)
-  const [feedMeta, setFeedMeta] = useState<Pick<JobFeedResult, 'generatedAt' | 'live'>>({
+  const [feedMeta, setFeedMeta] = useState<Pick<JobFeedResult, 'generatedAt' | 'live' | 'sources'>>({
     generatedAt: null,
     live: false,
+    sources: {},
   })
+  const [hidden, setHidden] = useState<Record<string, true>>(loadHidden)
+  const [showHidden, setShowHidden] = useState(false)
   const [tab, setTab] = useState<Tab>('dashboard')
   const [selected, setSelected] = useState<ScoredJob | null>(null)
   const [query, setQuery] = useState('')
@@ -78,12 +92,33 @@ export default function App() {
     }
   }, [applied])
 
+  // Persist "not interested" (hidden) jobs.
+  useEffect(() => {
+    try {
+      localStorage.setItem(HIDDEN_KEY, JSON.stringify(hidden))
+    } catch {
+      /* ignore */
+    }
+  }, [hidden])
+
+  const hideJob = useCallback((id: string) => {
+    setHidden((h) => ({ ...h, [id]: true }))
+    setSelected(null)
+  }, [])
+  const unhideJob = useCallback((id: string) => {
+    setHidden((h) => {
+      const next = { ...h }
+      delete next[id]
+      return next
+    })
+  }, [])
+
   // Load jobs from the active source (swap-in-ready for a live API).
   const refresh = useCallback(async () => {
     setRefreshing(true)
     const result = await activeSource.fetchJobs()
     setRawJobs(result.jobs)
-    setFeedMeta({ generatedAt: result.generatedAt, live: result.live })
+    setFeedMeta({ generatedAt: result.generatedAt, live: result.live, sources: result.sources })
     setLastRefreshed(Date.now())
     setRefreshing(false)
   }, [])
@@ -101,7 +136,7 @@ export default function App() {
     setApplied((prev) => {
       const next = { ...prev }
       if (next[job.id]) delete next[job.id]
-      else next[job.id] = { appliedOn: new Date().toLocaleDateString() }
+      else next[job.id] = { appliedOn: new Date().toLocaleDateString(), job }
       return next
     })
   }, [])
@@ -111,7 +146,10 @@ export default function App() {
     () => (rawJobs ? rankJobs(rawJobs, profile, level) : []),
     [rawJobs, profile, level],
   )
-  const stats = useMemo(() => buildDashboard(scored, profile), [scored, profile])
+  // "Not interested" jobs are removed from every view.
+  const visibleScored = useMemo(() => scored.filter((j) => !hidden[j.id]), [scored, hidden])
+  const hiddenJobs = useMemo(() => scored.filter((j) => hidden[j.id]), [scored, hidden])
+  const stats = useMemo(() => buildDashboard(visibleScored, profile), [visibleScored, profile])
 
   const applyProfile = useCallback(
     (p: CandidateProfile) => {
@@ -139,24 +177,28 @@ export default function App() {
   }, [refresh])
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return scored
+    if (!query.trim()) return visibleScored
     const q = query.toLowerCase()
-    return scored.filter(
+    return visibleScored.filter(
       (j) =>
         j.title.toLowerCase().includes(q) ||
         j.company.toLowerCase().includes(q) ||
         j.requiredSkills.some((s) => s.toLowerCase().includes(q)),
     )
-  }, [scored, query])
+  }, [visibleScored, query])
 
-  const appliedJobs = useMemo(
-    () =>
-      scored
-        .filter((j) => applied[j.id])
-        .sort((a, b) => (applied[b.id].appliedOn > applied[a.id].appliedOn ? 1 : -1)),
-    [scored, applied],
-  )
-  const appliedCount = Object.keys(applied).length
+  const appliedJobs = useMemo(() => {
+    // Prefer the freshly-scored job from the current feed; fall back to the
+    // snapshot saved when it was applied (so it survives feed churn).
+    const current = new Map(visibleScored.map((j) => [j.id, j]))
+    return Object.entries(applied)
+      .filter(([id]) => !hidden[id])
+      .map(([id, v]) => current.get(id) ?? v.job)
+      .filter((j): j is ScoredJob => !!j)
+      .sort((a, b) => (applied[b.id].appliedOn > applied[a.id].appliedOn ? 1 : -1))
+  }, [visibleScored, applied, hidden])
+  const appliedCount = appliedJobs.length
+  const hiddenCount = hiddenJobs.length
 
   return (
     <div className="min-h-full bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
@@ -271,7 +313,7 @@ export default function App() {
             Dashboard
           </TabButton>
           <TabButton active={tab === 'matches'} onClick={() => setTab('matches')}>
-            All matches ({scored.length})
+            All matches ({visibleScored.length})
           </TabButton>
           <TabButton active={tab === 'applied'} onClick={() => setTab('applied')}>
             Applied ({appliedCount})
@@ -294,6 +336,7 @@ export default function App() {
             level={level}
             applied={applied}
             onOpen={setSelected}
+            onHide={hideJob}
             onSeeAll={() => setTab('matches')}
           />
         ) : tab === 'matches' ? (
@@ -324,9 +367,50 @@ export default function App() {
             </p>
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               {filtered.map((j, i) => (
-                <JobCard key={j.id} job={j} rank={i + 1} applied={!!applied[j.id]} onOpen={setSelected} />
+                <JobCard
+                  key={j.id}
+                  job={j}
+                  rank={i + 1}
+                  applied={!!applied[j.id]}
+                  onOpen={setSelected}
+                  onHide={hideJob}
+                />
               ))}
             </div>
+
+            {hiddenCount > 0 && (
+              <div className="mt-2 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800/60">
+                <button
+                  onClick={() => setShowHidden((s) => !s)}
+                  className="flex w-full items-center justify-between text-sm font-medium text-slate-600 dark:text-slate-300"
+                >
+                  <span>Not interested ({hiddenCount})</span>
+                  <span className="text-xs text-brand-600 dark:text-brand-400">
+                    {showHidden ? 'Hide list' : 'Show'}
+                  </span>
+                </button>
+                {showHidden && (
+                  <ul className="mt-3 space-y-2">
+                    {hiddenJobs.map((j) => (
+                      <li
+                        key={j.id}
+                        className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-900/40"
+                      >
+                        <span className="min-w-0 truncate text-sm text-slate-500 line-through dark:text-slate-400">
+                          {j.title} · {j.company}
+                        </span>
+                        <button
+                          onClick={() => unhideJob(j.id)}
+                          className="shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
+                          Restore
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           // Applied tab
@@ -356,7 +440,7 @@ export default function App() {
             ) : (
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                 {appliedJobs.map((j) => (
-                  <JobCard key={j.id} job={j} applied onOpen={setSelected} />
+                  <JobCard key={j.id} job={j} applied onOpen={setSelected} onHide={hideJob} />
                 ))}
               </div>
             )}
@@ -373,7 +457,8 @@ export default function App() {
             aria-hidden
           />
           <span className="font-medium text-slate-500 dark:text-slate-300">
-            {feedMeta.live ? 'Live feed from Naukri.com' : 'Captured listings from Naukri.com'}
+            {feedMeta.live ? 'Live feed' : 'Captured listings'}
+            {sourceLabel(feedMeta.sources) ? ` · ${sourceLabel(feedMeta.sources)}` : ''}
           </span>
           {feedMeta.generatedAt && (
             <span>
@@ -394,6 +479,7 @@ export default function App() {
         appliedOn={selected ? applied[selected.id]?.appliedOn : undefined}
         onClose={() => setSelected(null)}
         onToggleApplied={toggleApplied}
+        onHide={hideJob}
       />
 
       <ResumeUpload
@@ -406,6 +492,13 @@ export default function App() {
       />
     </div>
   )
+}
+
+/** "Naukri.com 83 · Adzuna 57" — the live source breakdown for the footer. */
+function sourceLabel(sources: Record<string, number>): string {
+  const entries = Object.entries(sources).sort((a, b) => b[1] - a[1])
+  if (!entries.length) return ''
+  return entries.map(([name, n]) => `${name} ${n}`).join(' · ')
 }
 
 function formatFeedTime(iso: string): string {

@@ -14,9 +14,10 @@ interface Props {
   rank?: number
   applied?: boolean
   onOpen: (job: ScoredJob) => void
+  onHide?: (id: string) => void
 }
 
-export default function JobCard({ job, rank, applied, onOpen }: Props) {
+export default function JobCard({ job, rank, applied, onOpen, onHide }: Props) {
   return (
     <button
       onClick={() => onOpen(job)}
@@ -52,6 +53,28 @@ export default function JobCard({ job, rank, applied, onOpen }: Props) {
               </svg>
               {job.source}
             </span>
+            {onHide && (
+              <span
+                role="button"
+                tabIndex={0}
+                title="Not interested — hide this job"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onHide(job.id)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.stopPropagation()
+                    onHide(job.id)
+                  }
+                }}
+                className="inline-flex h-5 w-5 items-center justify-center rounded-full text-slate-400 transition hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-500/15 dark:hover:text-rose-300"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                  <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
+                </svg>
+              </span>
+            )}
           </div>
           <h3 className="mt-1 truncate text-base font-semibold text-slate-900 group-hover:text-brand-700 dark:text-white dark:group-hover:text-brand-300">
             {job.title}
