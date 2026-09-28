@@ -9,7 +9,12 @@ on:
     - cron: '0 * * * *' # hourly, on the hour (UTC)
   push:
     branches: [main]
-  workflow_dispatch: {} # allow manual runs from the Actions tab
+  workflow_dispatch: # allow manual runs from the Actions tab
+    inputs:
+      force_serp:
+        description: 'Also run SerpApi (Google-for-Jobs) this run — uses ~3 free-tier searches'
+        type: boolean
+        default: false
 
 # Least-privilege token needed to publish to GitHub Pages.
 permissions:
@@ -59,6 +64,9 @@ jobs:
           ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }} # https://developer.adzuna.com
           ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }} # https://serpapi.com (Google-for-Jobs)
+          # SerpApi (free tier) runs once/day at UTC 6; force it on a manual run
+          # by ticking "force_serp" in the Run-workflow dialog.
+          SERP_FORCE: ${{ inputs.force_serp && '1' || '' }}
 
       - name: Publish feed as a same-origin file
         run: |

@@ -56,8 +56,16 @@ the app. De-duplication is by title + company + city.
   <https://serpapi.com> (free tier ~100 searches/mo):
 
   ```bash
-  SERPAPI_KEY=zzzz npm run scrape
+  SERP_FORCE=1 SERPAPI_KEY=zzzz npm run scrape
   ```
+
+  **Free-tier budget:** unlike Naukri/Adzuna (hourly), SerpApi can't run every
+  hour on the free plan. It uses a trimmed matrix (3 keywords × 1 location =
+  3 searches) and only runs during the UTC hour(s) in `SERP_HOURS` (default
+  `6`) — i.e. once a day ≈ 90 searches/month. `SERP_FORCE=1` runs it regardless
+  (used by the manual "force_serp" workflow input). Naukri + Adzuna keep
+  refreshing hourly; Google-for-Jobs listings just refresh daily. Widen
+  `SERP_HOURS` / `SERP_KEYWORDS` only if you have a paid SerpApi plan.
 
   In GitHub Actions, add the keys you want as repository **secrets**
   (Settings → Secrets and variables → Actions): `ADZUNA_APP_ID`,

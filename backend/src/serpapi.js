@@ -1,5 +1,4 @@
 import { classifyDomain, classifyRole, classifyCity, isStrictProductRole } from './classify.js'
-import { KEYWORDS } from './queries.js'
 import { stripHtml, sleep, inferWorkMode, parseYears, extractSkills } from './util.js'
 
 // ---------------------------------------------------------------------------
@@ -8,13 +7,22 @@ import { stripHtml, sleep, inferWorkMode, parseYears, extractSkills } from './ut
 // broad coverage. Each posting's `source` is set to the underlying board (the
 // Google "via …" value), so you can see where it actually came from.
 //
-// Needs a SerpApi key (https://serpapi.com, free tier ~100 searches/mo) in env
-// SERPAPI_KEY. If unset, it's skipped gracefully.
+// Needs a SerpApi key (https://serpapi.com) in env SERPAPI_KEY. Skipped
+// gracefully when unset.
+//
+// FREE-TIER BUDGET: SerpApi's free plan allows ~100 searches/month, so this
+// source can't run every hour like Naukri/Adzuna. It uses a small query matrix
+// and only runs during the hour(s) in SERP_HOURS (UTC, default "6") — i.e.
+// once a day = ~3 searches/day ≈ 90/month. Set SERP_FORCE=1 to run regardless
+// (used for manual workflow runs). Naukri + Adzuna still refresh hourly; the
+// Google-for-Jobs listings (LinkedIn/company pages) just refresh daily.
 // ---------------------------------------------------------------------------
 
-// Cities to search (Navi Mumbai priority, then Mumbai). Google-for-Jobs takes a
-// free-text location; we still classify per posting and drop anything else.
-const LOCATIONS = ['Navi Mumbai, Maharashtra, India', 'Mumbai, Maharashtra, India']
+// Trimmed matrix for the free tier: 3 keywords × 1 location = 3 searches/run.
+// Google-for-Jobs for "Mumbai" already spans the region; we still classify each
+// posting's own location and keep only Navi Mumbai / Mumbai.
+const SERP_KEYWORDS = ['product manager', 'senior product manager', 'technical product manager']
+const SERP_LOCATIONS = ['Mumbai, Maharashtra, India']
 
 function cleanVia(via) {
   // "via LinkedIn" -> "LinkedIn"; fall back to "Google Jobs".
@@ -63,18 +71,32 @@ function mapSerp(r) {
   }
 }
 
-/** Fetch product roles via SerpApi's Google-for-Jobs engine. */
+/** Fetch product roles via SerpApi's Google-for-Jobs engine (free-tier aware). */
 export async function fetchSerpJobs({
   apiKey = process.env.SERPAPI_KEY,
+  force = !!process.env.SERP_FORCE,
   log = console.log,
 } = {}) {
   if (!apiKey) {
     log('[serpapi] SERPAPI_KEY not set — skipping Google-for-Jobs source')
     return []
   }
+  // Free-tier budget gate: only run during the configured UTC hour(s).
+  const runHours = (process.env.SERP_HOURS || '6')
+    .split(',')
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((n) => !Number.isNaN(n))
+  const hour = new Date().getUTCHours()
+  if (!force && !runHours.includes(hour)) {
+    log(
+      `[serpapi] skipping (runs at UTC ${runHours.join(',')} only, to stay within the free tier; SERP_FORCE=1 overrides)`,
+    )
+    return []
+  }
+
   const byId = new Map()
-  for (const keyword of KEYWORDS) {
-    for (const location of LOCATIONS) {
+  for (const keyword of SERP_KEYWORDS) {
+    for (const location of SERP_LOCATIONS) {
       const url =
         `https://serpapi.com/search.json?engine=google_jobs&hl=en&gl=in` +
         `&q=${encodeURIComponent(keyword)}&location=${encodeURIComponent(location)}` +
