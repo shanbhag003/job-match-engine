@@ -18,8 +18,9 @@ import {
   type SyncConfig,
   type SyncState,
 } from './lib/sync'
+import { isTargetRole, loadApplyPrefs, saveApplyPrefs, type ApplyPrefs } from './lib/apply'
 
-type Tab = 'dashboard' | 'matches' | 'applied'
+type Tab = 'dashboard' | 'apply' | 'matches' | 'applied'
 
 const REFRESH_MS = 60 * 60 * 1000 // auto-refresh every hour
 const APPLIED_KEY = 'jmp-applied'
@@ -68,6 +69,8 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(() => (loadSyncConfig() ? 'connecting' : 'off'))
   const [syncOpen, setSyncOpen] = useState(false)
   const [syncReady, setSyncReady] = useState(false)
+  const [applyPrefs, setApplyPrefs] = useState<ApplyPrefs>(loadApplyPrefs)
+  const [applySource, setApplySource] = useState<string>('All')
   const [tab, setTab] = useState<Tab>('dashboard')
   const [selected, setSelected] = useState<ScoredJob | null>(null)
   const [query, setQuery] = useState('')
@@ -270,6 +273,25 @@ export default function App() {
   const appliedCount = appliedJobs.length
   const hiddenCount = hiddenJobs.length
 
+  // Apply queue: Product Manager / Associate Product Manager roles not yet
+  // applied, sorted by fit; filterable by source (e.g. LinkedIn).
+  const applyQueueAll = useMemo(
+    () => visibleScored.filter((j) => isTargetRole(j.title) && !applied[j.id]),
+    [visibleScored, applied],
+  )
+  const applySources = useMemo(
+    () => ['All', ...Array.from(new Set(applyQueueAll.map((j) => j.source)))],
+    [applyQueueAll],
+  )
+  const applyQueue = useMemo(
+    () => (applySource === 'All' ? applyQueueAll : applyQueueAll.filter((j) => j.source === applySource)),
+    [applyQueueAll, applySource],
+  )
+  const updateApplyPrefs = useCallback((p: ApplyPrefs) => {
+    setApplyPrefs(p)
+    saveApplyPrefs(p)
+  }, [])
+
   return (
     <div className="min-h-full bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       {/* Top bar */}
@@ -412,6 +434,9 @@ export default function App() {
           <TabButton active={tab === 'dashboard'} onClick={() => setTab('dashboard')}>
             Dashboard
           </TabButton>
+          <TabButton active={tab === 'apply'} onClick={() => setTab('apply')}>
+            Apply queue ({applyQueueAll.length})
+          </TabButton>
           <TabButton active={tab === 'matches'} onClick={() => setTab('matches')}>
             All matches ({visibleScored.length})
           </TabButton>
@@ -439,6 +464,87 @@ export default function App() {
             onHide={hideJob}
             onSeeAll={() => setTab('matches')}
           />
+        ) : tab === 'apply' ? (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Apply queue</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Product Manager &amp; Associate Product Manager roles, best fit first. Open one for an
+                auto-drafted cover letter + screening answers, then apply yourself (e.g. LinkedIn Easy
+                Apply). Nothing is submitted for you.
+              </p>
+            </div>
+
+            {/* Apply preferences used to fill screening answers */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800/60">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Apply preferences (used in screening answers)
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <PrefInput
+                  label="Notice period"
+                  placeholder="e.g. 60 days"
+                  value={applyPrefs.noticePeriod}
+                  onChange={(v) => updateApplyPrefs({ ...applyPrefs, noticePeriod: v })}
+                />
+                <PrefInput
+                  label="Current CTC"
+                  placeholder="e.g. 28 LPA"
+                  value={applyPrefs.currentCtc}
+                  onChange={(v) => updateApplyPrefs({ ...applyPrefs, currentCtc: v })}
+                />
+                <PrefInput
+                  label="Expected CTC"
+                  placeholder="e.g. 38 LPA"
+                  value={applyPrefs.expectedCtc}
+                  onChange={(v) => updateApplyPrefs({ ...applyPrefs, expectedCtc: v })}
+                />
+              </div>
+            </div>
+
+            {/* Source filter */}
+            {applySources.length > 2 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-slate-400">Source:</span>
+                {applySources.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setApplySource(s)}
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium transition ${
+                      applySource === s
+                        ? 'bg-brand-600 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <p className="text-xs text-slate-400">
+              {applyQueue.length} role{applyQueue.length !== 1 ? 's' : ''} to apply to
+              {applySource !== 'All' ? ` · ${applySource}` : ''}
+            </p>
+
+            {applyQueue.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-800/40">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  No Product Manager / Associate PM roles to apply to right now
+                  {applySource !== 'All' ? ` from ${applySource}` : ''}.
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  New roles arrive with the hourly feed. Check back, or switch source above.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                {applyQueue.map((j, i) => (
+                  <JobCard key={j.id} job={j} rank={i + 1} onOpen={setSelected} onHide={hideJob} />
+                ))}
+              </div>
+            )}
+          </div>
         ) : tab === 'matches' ? (
           <div className="space-y-4">
             <div className="relative">
@@ -577,6 +683,9 @@ export default function App() {
         job={selected}
         applied={selected ? !!applied[selected.id] : false}
         appliedOn={selected ? applied[selected.id]?.appliedOn : undefined}
+        profile={profile}
+        level={level}
+        applyPrefs={applyPrefs}
         onClose={() => setSelected(null)}
         onToggleApplied={toggleApplied}
         onHide={hideJob}
@@ -649,6 +758,30 @@ function TabButton({
       {children}
       {active && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-brand-600" />}
     </button>
+  )
+}
+
+function PrefInput({
+  label,
+  placeholder,
+  value,
+  onChange,
+}: {
+  label: string
+  placeholder: string
+  value: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[11px] font-medium text-slate-400">{label}</span>
+      <input
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100 dark:border-slate-700 dark:bg-slate-800 dark:focus:ring-brand-500/20"
+      />
+    </label>
   )
 }
 

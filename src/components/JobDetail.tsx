@@ -1,13 +1,18 @@
 import { useEffect } from 'react'
-import type { ScoredJob, ScoreBreakdown } from '../types'
+import type { ScoredJob, ScoreBreakdown, CandidateProfile, DerivedLevel } from '../types'
 import { prettyDomain } from '../lib/scoring'
 import { WEIGHTS } from '../lib/scoring'
+import type { ApplyPrefs } from '../lib/apply'
 import ScoreRing from './ScoreRing'
+import ApplyPanel from './ApplyPanel'
 
 interface Props {
   job: ScoredJob | null
   applied?: boolean
   appliedOn?: string
+  profile: CandidateProfile
+  level: DerivedLevel
+  applyPrefs: ApplyPrefs
   onClose: () => void
   onToggleApplied: (job: ScoredJob) => void
   onHide: (id: string) => void
@@ -22,7 +27,17 @@ const COMPONENT_META: { key: keyof ScoreBreakdown; label: string }[] = [
   { key: 'freshness', label: 'Freshness (posting age)' },
 ]
 
-export default function JobDetail({ job, applied, appliedOn, onClose, onToggleApplied, onHide }: Props) {
+export default function JobDetail({
+  job,
+  applied,
+  appliedOn,
+  profile,
+  level,
+  applyPrefs,
+  onClose,
+  onToggleApplied,
+  onHide,
+}: Props) {
   useEffect(() => {
     if (!job) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -185,6 +200,8 @@ export default function JobDetail({ job, applied, appliedOn, onClose, onToggleAp
               {job.postedRelative ? ` · posted ${job.postedRelative}` : ''}
             </p>
           </Section>
+
+          <ApplyPanel job={job} profile={profile} level={level} prefs={applyPrefs} />
         </div>
 
         {/* Apply footer */}
